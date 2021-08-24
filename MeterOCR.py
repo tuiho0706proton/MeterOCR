@@ -146,6 +146,8 @@ def main():
 					confidences.append(float(confidence))
 					classIDs.append(classID)
 					res_img = cv2.rectangle(image, (x, y), (x+width, y+height), (0,0,255), 4)
+					cv2.putText(res_img, str(classID), (x, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
+
 					# print(classID)
 
 
@@ -155,6 +157,7 @@ def main():
 			# cv2.waitKey(0)
 			# cv2.imshow("result image", res_img)
 			# cv2.waitKey(0)
+		cv2.imwrite('results/' + f_name, res_img)
 		for i in rectXs:
 			sortedXs.append(i)
 		sortedXs.sort()
