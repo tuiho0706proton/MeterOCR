@@ -1,21 +1,17 @@
-# USAGE
-# python yolo.py --image images/baggage_claim.jpg --yolo yolo-coco
-
 # import the necessary packages
 import numpy as np
-import argparse
 import time
 import cv2
 import os
+import argparse
 configPath_for_feature = "models/box.cfg"
 weightsPath_for_feature = "models/box.weights"
 configPath_for_digits = "models/meter.cfg"
 weightsPath_for_digits = "models/meter.weights"
 # load our YOLO object detector trained on COCO dataset (80 classes)
-print("[INFO] loading YOLO from disk...")
-
+print("[INFO] loading model from disk...")
 img_dir = "./util_images_dev"
-f_lists = os.listdir(img_dir)
+
 def detect_feature(image):
 	(H, W) = image.shape[:2]
 	net = cv2.dnn.readNetFromDarknet(configPath_for_feature, weightsPath_for_feature)
@@ -76,11 +72,23 @@ def detect_feature(image):
 		cro_img = image[y :y + height , x:x + width ]
 		rotate_img = cv2.rotate(cro_img, rotateCode = 2)
 		return rotate_img
-def main():
-	fo = open("result.txt", "w")
+
+def parse_opt():
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--source', type=str, default='./util_images_dev', help='image file')
+	opt = parser.parse_args()
+	return opt
+
+def main(source):
+	mode = 0
+	if source != img_dir:
+		source, file_name = os.path.split(os.path.abspath(source))
+		mode = 1
+	f_lists = os.listdir(source)
+	fo = open("results/result.txt", "w")
 	for f_name in f_lists:
 		net = cv2.dnn.readNetFromDarknet(configPath_for_digits, weightsPath_for_digits)
-
+		if mode == 1: f_name = file_name
 		f_path = img_dir+"/"+f_name
 
 		# load our input image and grab its spatial dimensions
@@ -168,8 +176,11 @@ def main():
 			ptr += str(classIDs[k])
 		ptr += '\n'
 		print(f_name + ":" + ptr)
-		fo.write(f_name + ":" + ptr);
+		fo.write(f_name + ":" + ptr)
 		# print(digits)
+		if mode == 1: break
+
 if __name__ == '__main__':
-    main()
+	opt = parse_opt()
+	main(**vars(opt))
 
