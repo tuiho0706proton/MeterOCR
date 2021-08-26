@@ -8,29 +8,33 @@ configPath_for_feature = "models/box.cfg"
 weightsPath_for_feature = "models/box.weights"
 configPath_for_digits = "models/meter.cfg"
 weightsPath_for_digits = "models/meter.weights"
-# load our YOLO object detector trained on COCO dataset (80 classes)
-print("[INFO] loading model from disk...")
+feature_net = cv2.dnn_Net
+digit_net = cv2.dnn_Net
 img_dir = "./util_images_dev"
 
+def load_model():
+	global feature_net, digit_net
+	print("[INFO] loading model from disk...")
+	feature_net = cv2.dnn.readNetFromDarknet(configPath_for_feature, weightsPath_for_feature)
+	digit_net = cv2.dnn.readNetFromDarknet(configPath_for_digits, weightsPath_for_digits)
 def detect_feature(image):
-	(H, W) = image.shape[:2]
-	net = cv2.dnn.readNetFromDarknet(configPath_for_feature, weightsPath_for_feature)
 
+	(H, W) = image.shape[:2]
 	# determine only the *output* layer names that we need from YOLO
-	ln = net.getLayerNames()
-	ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+	ln = feature_net.getLayerNames()
+	ln = [ln[i[0] - 1] for i in feature_net.getUnconnectedOutLayers()]
 
 	# construct a blob from the input image and then perform a forward
 	# pass of the YOLO object detector, giving us our bounding boxes and
 	# associated probabilities
 	blob = cv2.dnn.blobFromImage(image, 1 / 255.0, (300, 200), swapRB=True, crop=False)
-	net.setInput(blob)
+	feature_net.setInput(blob)
 	start = time.time()
-	layerOutputs = net.forward(ln)
+	layerOutputs = feature_net.forward(ln)
 	end = time.time()
 
-	# show timing information on YOLO
-	print("[INFO] YOLO took {:.6f} seconds".format(end - start))
+	# show timing information
+	print("[INFO] Detecting the featuer took {:.6f} seconds".format(end - start))
 
 	# initialize our lists of detected bounding boxes, confidences, and
 	# class IDs, respectively
@@ -69,6 +73,7 @@ def detect_feature(image):
 				confidences.append(float(confidence))
 				classIDs.append(classID)
 				res_img = cv2.rectangle(image, (x, y), (x+width, y+height), (0,0,255), 4)
+		# get the feature image and rotat it with 270 degree
 		cro_img = image[y :y + height , x:x + width ]
 		rotate_img = cv2.rotate(cro_img, rotateCode = 2)
 		return rotate_img
@@ -80,14 +85,16 @@ def parse_opt():
 	return opt
 
 def main(source):
+
 	mode = 0
 	if source != img_dir:
 		source, file_name = os.path.split(os.path.abspath(source))
 		mode = 1
 	f_lists = os.listdir(source)
 	fo = open("results/result.txt", "w")
+
 	for f_name in f_lists:
-		net = cv2.dnn.readNetFromDarknet(configPath_for_digits, weightsPath_for_digits)
+
 		if mode == 1: f_name = file_name
 		f_path = img_dir+"/"+f_name
 
@@ -98,20 +105,20 @@ def main(source):
 		(H, W) = image.shape[:2]
 
 		# determine only the *output* layer names that we need from YOLO
-		ln = net.getLayerNames()
-		ln = [ln[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+		ln = digit_net.getLayerNames()
+		ln = [ln[i[0] - 1] for i in digit_net.getUnconnectedOutLayers()]
 
 		# construct a blob from the input image and then perform a forward
 		# pass of the YOLO object detector, giving us our bounding boxes and
 		# associated probabilities
 		blob = cv2.dnn.blobFromImage(image, 1 / 255.0, (250, 100), swapRB=True, crop=False)
-		net.setInput(blob)
+		digit_net.setInput(blob)
 		start = time.time()
-		layerOutputs = net.forward(ln)
+		layerOutputs = digit_net.forward(ln)
 		end = time.time()
 
 		# show timing information on YOLO
-		print("[INFO] YOLO took {:.6f} seconds".format(end - start))
+		print("[INFO] Detecting the digits took {:.6f} seconds".format(end - start))
 
 		# initialize our lists of detected bounding boxes, confidences, and
 		# class IDs, respectively
@@ -156,15 +163,6 @@ def main(source):
 					res_img = cv2.rectangle(image, (x, y), (x+width, y+height), (0,0,255), 4)
 					cv2.putText(res_img, str(classID), (x, y - 20), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 4)
 
-					# print(classID)
-
-
-			# hh, ww, _ = res_img.shape
-			# show_img = cv2.resize(res_img, (600, 400))
-			# cv2.imshow("res", show_img)
-			# cv2.waitKey(0)
-			# cv2.imshow("result image", res_img)
-			# cv2.waitKey(0)
 		cv2.imwrite('results/' + f_name, res_img)
 		for i in rectXs:
 			sortedXs.append(i)
@@ -177,10 +175,11 @@ def main(source):
 		ptr += '\n'
 		print(f_name + ":" + ptr)
 		fo.write(f_name + ":" + ptr)
-		# print(digits)
+
 		if mode == 1: break
 
 if __name__ == '__main__':
 	opt = parse_opt()
+	load_model()
 	main(**vars(opt))
 
